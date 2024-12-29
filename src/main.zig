@@ -28,15 +28,13 @@ pub fn main() !void {
     defer file.close();
 
     // Start reading messages
-    var message: std.json.Parsed(RequestMessage) = undefined;
     while (true) {
-        message = try rpc.readMessage(allocator, stdin.reader(), file);
+        const message = try rpc.readMessage(allocator, stdin.reader(), file);
         try file.writeAll(message.value.method);
         try file.writeAll("\n//abc\n");
         try handle_message(allocator, stdout.writer());
-        // break;
+        message.deinit();
     }
-    defer message.deinit();
 }
 
 fn handle_message(allocator: std.mem.Allocator, stdout: std.fs.File.Writer) !void {

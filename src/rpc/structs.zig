@@ -15,19 +15,13 @@ pub const ResponseMessage = struct {
     //
 };
 
-pub fn newInitializeResponse() *const [378:0]u8 {
+pub fn newInitializeResponse() *const [193:0]u8 {
     return 
     \\{
-    \\    "response": {
-    \\        "rpc": "2.0",
-    \\        "id": 1
-    \\    },
+    \\    "rpc": "2.0",
+    \\    "id": 1,
     \\    "result": {
     \\        "capabilities": {
-    \\            "textDocumentSync": 1,
-    \\            "hoverProvider": false,
-    \\            "definitionProvider": false,
-    \\            "codeActionProvider": false 
     \\        },
     \\        "serverInfo": {
     \\            "name": "ghostty-lsp",
