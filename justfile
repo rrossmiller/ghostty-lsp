@@ -1,4 +1,5 @@
 build:
+    @clear
     zig build
 test:
     @clear

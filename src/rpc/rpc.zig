@@ -1,15 +1,15 @@
 const std = @import("std");
 const RequestMessage = @import("structs.zig").RequestMessage;
 
-pub fn readMessage(allocator: std.mem.Allocator, stdin: std.fs.File.Reader, log_file: std.fs.File) !std.json.Parsed(RequestMessage) {
+pub fn readMessage(allocator: std.mem.Allocator, stdin: std.fs.File.Reader, messages_file: std.fs.File) !std.json.Parsed(RequestMessage) {
     try stdin.skipBytes(16, .{}); // skip "Content-Length: "
     // get the length of the message in the header
     const buf = try stdin.readUntilDelimiterAlloc(allocator, '\r', 10);
     defer allocator.free(buf);
     const msg_size = try std.fmt.parseInt(u32, buf, 10);
-    try log_file.writeAll("//");
-    try log_file.writeAll(buf);
-    try log_file.writeAll("\n");
+    try messages_file.writeAll("//");
+    try messages_file.writeAll(buf);
+    try messages_file.writeAll("\n");
 
     // skip newlines "\r\n\r\n"
     try stdin.skipBytes(3, .{});
@@ -17,8 +17,8 @@ pub fn readMessage(allocator: std.mem.Allocator, stdin: std.fs.File.Reader, log_
     defer allocator.free(contents);
     _ = try stdin.readAll(contents);
 
-    try log_file.writeAll(contents);
-    try log_file.writeAll("\n\n");
+    try messages_file.writeAll(contents);
+    try messages_file.writeAll("\n\n");
 
     const parsed = try std.json.parseFromSlice(RequestMessage, allocator, contents, .{ .ignore_unknown_fields = true });
     return parsed;
