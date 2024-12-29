@@ -1,27 +1,53 @@
 const std = @import("std");
-const RequestMessage = @import("structs.zig").RequestMessage;
+const lsp_structs = @import("lsp.zig").structs;
+pub const BaseMessage = struct {
+    jsonrpc: []const u8 = "2.0",
+    //  The request id.
+    id: ?u32 = null,
+    // The method to be invoked.
+    method: []u8,
+};
 
-pub fn readMessage(allocator: std.mem.Allocator, stdin: std.fs.File.Reader, messages_file: std.fs.File) !std.json.Parsed(RequestMessage) {
-    try stdin.skipBytes(16, .{}); // skip "Content-Length: "
-    // get the length of the message in the header
-    const buf = try stdin.readUntilDelimiterAlloc(allocator, '\r', 10);
-    defer allocator.free(buf);
-    const msg_size = try std.fmt.parseInt(u32, buf, 10);
-    try messages_file.writeAll("//");
-    try messages_file.writeAll(buf);
-    try messages_file.writeAll("\n");
+pub fn RequestMessage(comptime T: type) type {
+    return struct {
+        jsonrpc: []const u8 = "2.0",
+        //  The request id.
+        id: ?u32 = null,
+        // The method to be invoked.
+        method: []u8,
 
-    // skip newlines "\r\n\r\n"
-    try stdin.skipBytes(3, .{});
-    const contents = try allocator.alloc(u8, msg_size);
-    defer allocator.free(contents);
-    _ = try stdin.readAll(contents);
+        // The method's params.
+        params: ?T = null,
+    };
+}
 
-    try messages_file.writeAll(contents);
-    try messages_file.writeAll("\n\n");
+pub fn MessageReader(comptime T: type) type {
+    return struct {
+        pub fn readMessage(allocator: std.mem.Allocator, stdin: std.fs.File.Reader, messages_file: std.fs.File) !std.json.Parsed(T) {
+            try stdin.skipBytes(16, .{}); // skip "Content-Length: "
+            // get the length of the message in the header
+            const buf = try stdin.readUntilDelimiterAlloc(allocator, '\r', 10);
+            defer allocator.free(buf);
+            const msg_size = try std.fmt.parseInt(u32, buf, 10);
 
-    const parsed = try std.json.parseFromSlice(RequestMessage, allocator, contents, .{ .ignore_unknown_fields = true });
-    return parsed;
+            // log client message
+            try messages_file.writeAll("//");
+            try messages_file.writeAll(buf);
+            try messages_file.writeAll("\n");
+
+            // skip newlines "\r\n\r\n"
+            try stdin.skipBytes(3, .{});
+            const contents = try allocator.alloc(u8, msg_size);
+            defer allocator.free(contents);
+            _ = try stdin.readAll(contents);
+
+            try messages_file.writeAll(contents);
+            try messages_file.writeAll("\n\n");
+
+            const parsed = try std.json.parseFromSlice(T, allocator, contents, .{ .ignore_unknown_fields = true });
+            return parsed;
+        }
+    };
 }
 
 test "test readMessage" {
@@ -46,7 +72,8 @@ test "test readMessage" {
     defer alloc.free(b);
     try f.seekTo(0);
 
-    const parsed = try readMessage(alloc, f.reader(), x);
+    const msg_reader = MessageReader(BaseMessage);
+    const parsed = try msg_reader.readMessage(alloc, f.reader(), x);
     defer parsed.deinit();
     const message = parsed.value;
     try std.testing.expectEqualStrings("initialize", message.method);
