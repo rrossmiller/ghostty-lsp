@@ -1,5 +1,6 @@
 const std = @import("std");
 const lsp_structs = @import("lsp.zig").structs;
+
 pub const BaseMessage = struct {
     jsonrpc: []const u8 = "2.0",
     //  The request id.
@@ -7,19 +8,6 @@ pub const BaseMessage = struct {
     // The method to be invoked.
     method: []u8,
 };
-
-pub fn RequestMessage(comptime T: type) type {
-    return struct {
-        jsonrpc: []const u8 = "2.0",
-        //  The request id.
-        id: ?u32 = null,
-        // The method to be invoked.
-        method: []u8,
-
-        // The method's params.
-        params: ?T = null,
-    };
-}
 
 pub fn MessageReader(comptime T: type) type {
     return struct {
@@ -72,10 +60,13 @@ test "test readMessage" {
     defer alloc.free(b);
     try f.seekTo(0);
 
-    const msg_reader = MessageReader(BaseMessage);
+    const msg_reader = MessageReader(lsp_structs.RequestMessage(lsp_structs.InitializeParams));
+    // const msg_reader = MessageReader(BaseMessage);
     const parsed = try msg_reader.readMessage(alloc, f.reader(), x);
     defer parsed.deinit();
     const message = parsed.value;
     try std.testing.expectEqualStrings("initialize", message.method);
     try std.testing.expectEqual(1, message.id);
+    const params = message.params.?;
+    try std.testing.expectEqualStrings("Neovim", params.clientInfo.name);
 }

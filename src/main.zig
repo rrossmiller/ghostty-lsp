@@ -59,6 +59,8 @@ pub fn main() !void {
         //https://www.reddit.com/r/Zig/comments/1bignpf/json_serialization_and_taggeddiscrimated_unions/
         //https://zigbin.io/651078
         if (std.mem.eql(u8, message.method, "initialize")) {
+            // const init_reader = rpc.MessageReader(lsp_structs.InitializeParams);
+            // const parsed = init_reader.readMessage();
             try write_response(allocator, stdout.writer());
         } else if (std.mem.eql(u8, message.method, "initialized")) {
             //
