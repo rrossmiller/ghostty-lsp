@@ -19,16 +19,19 @@ pub const Logger = struct {
     }
 
     pub fn log(self: *const Logger, msg: []const u8) !void {
-        const buf = try std.fmt.allocPrint(self.allocator, "{s}", .{msg});
+        // const t = try self.get_time();
+        // const buf = try std.fmt.allocPrint(self.allocator, "{s}: {s}\n", .{ t, msg });
+        const buf = try std.fmt.allocPrint(self.allocator, "{s}\n", .{msg});
         defer self.allocator.free(buf);
         try self.file.writeAll(buf);
     }
-    fn get_time() []u8 {
+
+    fn get_time(self: *const Logger) ![]u8 {
         var now: ctime.time_t = undefined;
         _ = ctime.time(&now);
         const timeinfo = ctime.localtime(&now);
         const s = ctime.asctime(timeinfo);
-        std.debug.print("{s}\n", .{s});
-        return "";
+        const buf = try std.fmt.allocPrint(self.allocator, "{s}", .{s});
+        return buf;
     }
 };
