@@ -4,7 +4,7 @@ const lsp_structs = @import("lsp.zig").structs;
 pub const BaseMessage = struct {
     jsonrpc: []const u8 = "2.0",
     //  The request id.
-    id: u32,
+    id: ?u32 = null,
     // The method to be invoked.
     method: []u8,
 
@@ -21,21 +21,23 @@ pub const BaseMessage = struct {
         defer allocator.free(buf);
         const msg_size = try std.fmt.parseInt(u32, buf, 10);
 
-        // log client message
+        // log size message delete
         const s = try std.fmt.allocPrint(allocator, "{s} ({d})\n", .{ buf, msg_size * 2 });
         try stderr.writeAll(s);
         allocator.free(s);
+
         // skip newlines "\r\n\r\n"
         try stdin.skipBytes(3, .{});
-        try stderr.writeAll("reading contents\n");
-        const contents = try stdin.readAllAlloc(allocator, msg_size * 2);
-        try stderr.writeAll("read contents\n");
 
-        // try stderr.writeAll(contents);
-        try stderr.writeAll("\n\n");
+        const contents = try allocator.alloc(u8, msg_size);
+        _ = try stdin.readAll(contents);
+
+        try stderr.writeAll("\n*****\n");
+        try stderr.writeAll(contents);
+        try stderr.writeAll("\n*****\n");
 
         var parsed = try std.json.parseFromSlice(BaseMessage, allocator, contents, .{ .ignore_unknown_fields = true });
-        std.debug.print("---{s}\n", .{parsed.value.method});
+        // std.debug.print("---{s}\n", .{parsed.value.method});
         parsed.value.contents = contents;
         parsed.value.message_len = msg_size;
         return parsed;
@@ -51,17 +53,15 @@ pub const BaseMessage = struct {
 pub fn MessageReader(comptime T: type) type {
     return struct {
         pub fn readMessage(allocator: std.mem.Allocator, base_message: *const BaseMessage) !std.json.Parsed(T) {
-            const stderr = std.io.getStdErr().writer();
             var content_stream = std.io.StreamSource{ .buffer = std.io.fixedBufferStream(base_message.contents.?) };
             const stdin = content_stream.reader();
 
             const contents = try stdin.readAllAlloc(allocator, base_message.message_len.?);
             defer allocator.free(contents);
 
-            // try stderr.writeAll(contents);
-            try stderr.writeAll("\n\n");
-
             const parsed = try std.json.parseFromSlice(T, allocator, contents, .{ .ignore_unknown_fields = true });
+
+            // std.debug.print("---{s}\n", .{parsed.value.method});
             return parsed;
         }
     };
