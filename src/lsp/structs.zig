@@ -1,33 +1,29 @@
 pub fn RequestMessage(comptime T: type) type {
     return struct {
         jsonrpc: []const u8 = "2.0",
-        //  The request id.
         id: ?u32 = null,
-        // The method to be invoked.
         method: []u8,
 
         // The method's params.
         params: ?T = null,
     };
 }
-// pub fn ResponseMessage(comptime _: type) type {
-//     return struct {
-//         jsonrpc: []const u8 = "2.0",
-//         id: ?u32 = null,
-//         //result
-//     };
-// }
-//
+
+pub fn ResponseMessage(comptime T: type) type {
+    return struct {
+        rpc: []const u8 = "2.0",
+        id: ?u32 = 1,
+        result: T,
+    };
+}
 // pub fn Notification(comptime _: type) type {
 //     return struct {
 //         jsonrpc: []const u8 = "2.0",
 //         method: []const u8,
-//
-//         //params
 //     };
 // }
 
-// INITIALIZE
+// INITIALIZE >
 pub const InitializeParams = struct {
     clientInfo: ClientInfo,
 };
@@ -35,19 +31,70 @@ const ClientInfo = struct {
     name: []u8,
     version: []u8,
 };
-pub fn newInitializeResponse() []const u8 {
-    return 
-    \\{
-    \\    "rpc": "2.0",
-    \\    "id": 1,
-    \\    "result": {
-    \\        "capabilities": {
-    \\        },
-    \\        "serverInfo": {
-    \\            "name": "ghostty-lsp",
-    \\            "version": "0.0.1"
-    \\        }
-    \\    }
-    \\}
-    ;
+
+pub const InitializeResult = struct {
+    capabilities: ServerCapabilities = .{ .textDocumentSync = 1 },
+    serverInfo: ServerInfo = .{},
+};
+pub const ServerCapabilities = struct {
+    textDocumentSync: u16 = 1,
+    // hoverProvider: bool = true,
+};
+pub const ServerInfo = struct {
+    name: []const u8 = "ghostty-lsp",
+    version: []const u8 = "0.0.1",
+};
+pub fn newInitializeResponse(id: ?u32) ResponseMessage(InitializeResult) {
+    const r = ResponseMessage(InitializeResult){ .id = id, .result = .{} };
+
+    return r;
 }
+// < INITIALIZE
+
+// document/didOpen >
+pub const DidOpenParams = struct {
+    textDocument: TextDocumentItem,
+};
+const TextDocumentItem = struct {
+    //  The text document's URI.
+    uri: []const u8,
+
+    // The text document's language identifier.
+    languageId: []const u8,
+
+    // The version number of this document (it will increase after each
+    // change, including undo/redo).
+    version: u8,
+
+    // The content of the opened text document.
+    text: []const u8,
+};
+// < document/didOpen
+// document/didChange >
+pub const DidChangeParams = struct {
+    textDocument: VersionedTextDocumentIdentifier,
+    contentChanges: []TextDocumentContentChangeEvent,
+};
+const VersionedTextDocumentIdentifier = struct { version: u8 };
+const TextDocumentContentChangeEvent = struct {
+    //export type TextDocumentContentChangeEvent = {
+    // 	/**
+    // 	 * The range of the document that changed.
+    // 	 */
+    // 	range: Range;
+    //
+    // 	/**
+    // 	 * The optional length of the range that got replaced.
+    // 	 *
+    // 	 * @deprecated use range instead.
+    // 	 */
+    // 	rangeLength?: uinteger;
+    //
+    // 	/**
+    // 	 * The new text for the provided range.
+    // 	 */
+    // 	text: string;
+    // } | {
+    text: []const u8,
+};
+// < document/didChange
