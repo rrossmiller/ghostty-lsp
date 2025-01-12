@@ -22,9 +22,9 @@ pub fn main() !void {
 
     std.log.info("ghostty-lsp started", .{});
 
-    // var state = State.init(allocator);
-    // defer state.deinit();
-    var state = State{};
+    var state = State.init(allocator);
+    defer state.deinit();
+    // var state = State{};
     // Start reading messages
     while (true) {
         // parse the message
@@ -43,6 +43,9 @@ fn handle_message(allocator: std.mem.Allocator, base_message: rpc.BaseMessage, s
     //https://www.reddit.com/r/Zig/comments/1bignpf/json_serialization_and_taggeddiscrimated_unions/
     //https://zigbin.io/651078
 
+    // std.debug.print("\n\n\n", .{});
+    // std.debug.print("{s}:\n{s}\n", .{ state.uri, state.text });
+    // std.debug.print("\n\n\n", .{});
     switch (try lsp.MessageType.get(base_message.method)) {
         // Requests
         .Initialize => {
@@ -58,16 +61,18 @@ fn handle_message(allocator: std.mem.Allocator, base_message: rpc.BaseMessage, s
             defer parsed.deinit();
             // store the text in the state map
             const params = parsed.value.params.?;
-            state.open_document(params.textDocument.uri, params.textDocument.text);
+            try state.open_document(params.textDocument.uri, params.textDocument.text);
         },
         .DidChange => {
+            std.debug.print("did change\n", .{});
             const parsed = try rpc.readMessage(allocator, &base_message, lsp_structs.RequestMessage(lsp_structs.DidChangeParams));
             defer parsed.deinit();
             const params = parsed.value.params.?;
             for (params.contentChanges, 0..) |change, i| {
                 std.debug.print("update{d} {s}: {d}\n", .{ i, params.textDocument.uri, change.text.len });
-                state.update_document(change.text);
+                try state.update_document(params.textDocument.uri, change.text);
             }
+            std.debug.print("{s}\n", .{state.documents.get(params.textDocument.uri).?});
         },
         // .DidClose => {
         //     std.debug.print("did close\n", .{});
