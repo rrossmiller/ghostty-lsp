@@ -30,12 +30,9 @@ pub fn main() !void {
         // parse the message
         const parsed = try rpc.BaseMessage.readMessage(allocator, stdin.reader());
         defer parsed.deinit();
-
         const base_message = parsed.value;
         defer base_message.deinit(allocator);
-        std.log.info("Message Recieved: {s}", .{base_message.method});
 
-        // handle the message
         try handle_message(allocator, base_message, &state, stdout);
     }
 }
@@ -46,7 +43,7 @@ fn handle_message(allocator: std.mem.Allocator, base_message: rpc.BaseMessage, s
     //https://www.reddit.com/r/Zig/comments/1bignpf/json_serialization_and_taggeddiscrimated_unions/
     //https://zigbin.io/651078
 
-    switch (try lsp.MessageType.init(base_message.method)) {
+    switch (try lsp.MessageType.get(base_message.method)) {
         // Requests
         .Initialize => {
             const parsed = try rpc.readMessage(allocator, &base_message, lsp_structs.RequestMessage(lsp_structs.InitializeParams));
@@ -82,7 +79,7 @@ fn handle_message(allocator: std.mem.Allocator, base_message: rpc.BaseMessage, s
         //     std.log.info("\n***Thanks for playing***\n", .{});
         // },
         else => {
-            // std.debug.print("{s}\n", .{base_message.method});
+            std.log.info("Message Recieved: {s}", .{base_message.method});
         },
     }
 }

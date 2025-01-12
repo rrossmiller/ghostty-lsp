@@ -12,7 +12,7 @@ pub const MessageType = enum {
     DidSave,
     Shutdown,
 
-    pub fn init(method: []const u8) LspError!MessageType {
+    pub fn get(method: []const u8) LspError!MessageType {
         if (std.mem.eql(u8, method, "initialize")) {
             return MessageType.Initialize;
         } else if (std.mem.eql(u8, method, "initialized")) {
