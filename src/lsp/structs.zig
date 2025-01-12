@@ -77,26 +77,11 @@ pub const DidChangeParams = struct {
     textDocument: VersionedTextDocumentIdentifier,
     contentChanges: []TextDocumentContentChangeEvent,
 };
-const VersionedTextDocumentIdentifier = struct { uri: []const u8, version: u8 };
-const TextDocumentContentChangeEvent = struct {
-    //export type TextDocumentContentChangeEvent = {
-    // 	/**
-    // 	 * The range of the document that changed.
-    // 	 */
-    // 	range: Range;
-    //
-    // 	/**
-    // 	 * The optional length of the range that got replaced.
-    // 	 *
-    // 	 * @deprecated use range instead.
-    // 	 */
-    // 	rangeLength?: uinteger;
-    //
-    // 	/**
-    // 	 * The new text for the provided range.
-    // 	 */
-    // 	text: string;
-    // } | {
+const VersionedTextDocumentIdentifier = struct {
+    uri: []const u8,
+    version: u8,
+};
+pub const TextDocumentContentChangeEvent = struct {
     text: []const u8,
 };
 // < document/didChange

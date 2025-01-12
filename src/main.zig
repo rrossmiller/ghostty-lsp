@@ -22,8 +22,9 @@ pub fn main() !void {
 
     std.log.info("ghostty-lsp started", .{});
 
-    var state = State.init(allocator);
-    defer state.deinit();
+    // var state = State.init(allocator);
+    // defer state.deinit();
+    var state = State{};
     // Start reading messages
     while (true) {
         // parse the message
@@ -59,48 +60,32 @@ fn handle_message(allocator: std.mem.Allocator, base_message: rpc.BaseMessage, s
             const parsed = try rpc.readMessage(allocator, &base_message, lsp_structs.RequestMessage(lsp_structs.DidOpenParams));
             defer parsed.deinit();
             // store the text in the state map
-            const uri = parsed.value.params.?.textDocument.uri;
-            try state.open_document(uri, parsed.value.params.?.textDocument.text);
-            std.debug.print("CONTENTS\n....\n{s}\n....\n", .{state.documents.get(uri).?});
+            const params = parsed.value.params.?;
+            state.open_document(params.textDocument.uri, params.textDocument.text);
         },
         .DidChange => {
-            std.debug.print("did change\n", .{});
-            if (true)
-                return;
-            // const parsed = try rpc.readMessage(allocator, &base_message, lsp_structs.RequestMessage(lsp_structs.DidChangeParams));
-            // defer parsed.deinit();
-            // const params = parsed.value.params.?;
-            // // std.debug.print("\n*****\n{s}\n*****\n", .{base_message.contents.?});
-            // const params_str = try std.json.stringifyAlloc(allocator, parsed.value.params, .{ .whitespace = .indent_2 });
-            // defer allocator.free(params_str);
-            // std.debug.print("Params:\n{s}\n", .{params_str});
-            // // try state.documents.put(params.textDocument.uri,params.contentChanges)
-            //
-            // // segfault happening here
-            // try lsp.handle_changes(params, state);
+            const parsed = try rpc.readMessage(allocator, &base_message, lsp_structs.RequestMessage(lsp_structs.DidChangeParams));
+            defer parsed.deinit();
+            const params = parsed.value.params.?;
+            for (params.contentChanges, 0..) |change, i| {
+                std.debug.print("update{d} {s}: {d}\n", .{ i, params.textDocument.uri, change.text.len });
+                state.update_document(change.text);
+            }
         },
-        .DidClose => {
-            std.debug.print("did close\n", .{});
-        },
-        .DidSave => {
-            std.debug.print("did save\n", .{});
-        },
-        .Shutdown => {
-            std.log.info("\n***Thanks for playing***\n", .{});
-        },
+        // .DidClose => {
+        //     std.debug.print("did close\n", .{});
+        // },
+        // .DidSave => {
+        //     std.debug.print("did save\n", .{});
+        // },
+        // .Shutdown => {
+        //     std.log.info("\n***Thanks for playing***\n", .{});
+        // },
         else => {
-            std.debug.print("{s}\n", .{base_message.method});
+            // std.debug.print("{s}\n", .{base_message.method});
         },
     }
 }
-
-// fn read_params(allocator: std.mem.Allocator, base_message: rpc.BaseMessage, T: type) !std.json.Parsed(T) {
-//     const parsed = try rpc.readMessage(allocator, &base_message, lsp_structs.RequestMessage(T));
-//     const params_str = try std.json.stringifyAlloc(allocator, parsed.value.params, .{ .whitespace = .indent_2 });
-//     defer allocator.free(params_str);
-//     std.log.info("Params:\n{s}", .{params_str});
-//     return parsed;
-// }
 
 fn write_response(allocator: std.mem.Allocator, stdout: std.fs.File.Writer, res: anytype) !void {
     const r = try std.json.stringifyAlloc(allocator, res, .{ .whitespace = .indent_2 });
@@ -139,8 +124,5 @@ test "test read base then init (test rollback)" {
     const parsed = try rpc.readMessage(allocator, &base_message, lsp_structs.InitializeParams);
     defer parsed.deinit();
     const message = parsed.value;
-    try std.testing.expectEqualStrings("initialize", message.method);
-    try std.testing.expectEqual(1, message.id);
-    const params = message.params.?;
-    try std.testing.expectEqualStrings("Neovim", params.clientInfo.name);
+    try std.testing.expectEqualStrings("Neovim", message.clientInfo.name);
 }
