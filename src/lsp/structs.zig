@@ -45,8 +45,10 @@ pub const ServerInfo = struct {
     version: []const u8 = "0.0.1",
 };
 pub fn newInitializeResponse(id: ?u32) ResponseMessage(InitializeResult) {
-    const r = ResponseMessage(InitializeResult){ .id = id, .result = .{} };
-
+    const r = ResponseMessage(InitializeResult){
+        .id = id,
+        .result = .{},
+    };
     return r;
 }
 // < INITIALIZE
@@ -75,7 +77,7 @@ pub const DidChangeParams = struct {
     textDocument: VersionedTextDocumentIdentifier,
     contentChanges: []TextDocumentContentChangeEvent,
 };
-const VersionedTextDocumentIdentifier = struct { version: u8 };
+const VersionedTextDocumentIdentifier = struct { uri: []const u8, version: u8 };
 const TextDocumentContentChangeEvent = struct {
     //export type TextDocumentContentChangeEvent = {
     // 	/**

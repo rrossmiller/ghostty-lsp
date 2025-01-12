@@ -17,4 +17,7 @@ pub const State = struct {
     pub fn open_document(self: *State, uri: []const u8, text: []const u8) !void {
         try self.documents.put(uri, text);
     }
+    pub fn update_document(self: *State, uri: []const u8, text: []const u8) !void {
+        try self.documents.put(uri, text);
+    }
 };

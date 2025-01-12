@@ -1,5 +1,6 @@
 const std = @import("std");
 const rpc = @import("rpc/rpc.zig");
+const lsp = @import("lsp/lsp.zig");
 const lsp_structs = @import("lsp/structs.zig");
 const State = @import("analysis/state.zig").State;
 
@@ -34,59 +35,75 @@ pub fn main() !void {
         std.log.info("Message Recieved: {s}", .{base_message.method});
 
         // handle the message
-        try handle_message(allocator, base_message, state, stdout);
+        try handle_message(allocator, base_message, &state, stdout);
     }
 }
 
-fn handle_message(allocator: std.mem.Allocator, base_message: rpc.BaseMessage, state: State, stdout: std.fs.File) !void {
+fn handle_message(allocator: std.mem.Allocator, base_message: rpc.BaseMessage, state: *State, stdout: std.fs.File) !void {
     //TODO replace with enum?
     //impl json parse
     //https://www.reddit.com/r/Zig/comments/1bignpf/json_serialization_and_taggeddiscrimated_unions/
     //https://zigbin.io/651078
 
-    // Requests
-    if (std.mem.eql(u8, base_message.method, "initialize")) {
-        const parsed = try rpc.readMessage(allocator, &base_message, lsp_structs.RequestMessage(lsp_structs.InitializeParams));
-        defer parsed.deinit();
-        std.log.info("Connected to: {s}", .{parsed.value.params.?.clientInfo.name});
-        const init_res = lsp_structs.newInitializeResponse(parsed.value.id);
-        try write_response(allocator, stdout.writer(), init_res);
-        std.log.info("Responded to initialize", .{});
-    }
-    // Notifications
-    else if (std.mem.eql(u8, base_message.method, "textDocument/didOpen")) {
-        std.debug.print("\n*****\n{s}\n*****\n", .{base_message.contents.?});
-        const parsed = try rpc.readMessage(allocator, &base_message, lsp_structs.RequestMessage(lsp_structs.DidOpenParams));
-        defer parsed.deinit();
-        // store the text in the state map
-        try state.documents.put(parsed.value.params.?.textDocument.uri, parsed.value.params.?.textDocument.text);
-        const params_str = try std.json.stringifyAlloc(allocator, parsed.value.params, .{ .whitespace = .indent_2 });
-        defer allocator.free(params_str);
-        std.debug.print("Params:\n{s}", .{params_str});
-    } else if (std.mem.eql(u8, base_message.method, "textDocument/didChange")) {
-        working on didchange
-        std.debug.print("\n*****\n{s}\n*****\n", .{base_message.contents.?});
-    } else if (std.mem.eql(u8, base_message.method, "textDocument/didClose")) {
-        std.debug.print("\n*****\n{s}\n*****\n", .{base_message.contents.?});
-    } else if (std.mem.eql(u8, base_message.method, "shutdown")) {
-        std.log.info("\n***Thanks for playing***\n", .{});
+    switch (try lsp.MessageType.init(base_message.method)) {
+        // Requests
+        .Initialize => {
+            const parsed = try rpc.readMessage(allocator, &base_message, lsp_structs.RequestMessage(lsp_structs.InitializeParams));
+            defer parsed.deinit();
+            std.log.info("Connected to: {s}", .{parsed.value.params.?.clientInfo.name});
+            const init_res = lsp_structs.newInitializeResponse(parsed.value.id);
+            try write_response(allocator, stdout.writer(), init_res);
+        },
+        // Notifications
+        .DidOpen => {
+            const parsed = try rpc.readMessage(allocator, &base_message, lsp_structs.RequestMessage(lsp_structs.DidOpenParams));
+            defer parsed.deinit();
+            // store the text in the state map
+            const uri = parsed.value.params.?.textDocument.uri;
+            try state.open_document(uri, parsed.value.params.?.textDocument.text);
+            std.debug.print("CONTENTS\n....\n{s}\n....\n", .{state.documents.get(uri).?});
+        },
+        .DidChange => {
+            std.debug.print("did change\n", .{});
+            if (true)
+                return;
+            // const parsed = try rpc.readMessage(allocator, &base_message, lsp_structs.RequestMessage(lsp_structs.DidChangeParams));
+            // defer parsed.deinit();
+            // const params = parsed.value.params.?;
+            // // std.debug.print("\n*****\n{s}\n*****\n", .{base_message.contents.?});
+            // const params_str = try std.json.stringifyAlloc(allocator, parsed.value.params, .{ .whitespace = .indent_2 });
+            // defer allocator.free(params_str);
+            // std.debug.print("Params:\n{s}\n", .{params_str});
+            // // try state.documents.put(params.textDocument.uri,params.contentChanges)
+            //
+            // // segfault happening here
+            // try lsp.handle_changes(params, state);
+        },
+        .DidClose => {
+            std.debug.print("did close\n", .{});
+        },
+        .DidSave => {
+            std.debug.print("did save\n", .{});
+        },
+        .Shutdown => {
+            std.log.info("\n***Thanks for playing***\n", .{});
+        },
+        else => {
+            std.debug.print("{s}\n", .{base_message.method});
+        },
     }
 }
 
-fn read_params(allocator: std.mem.Allocator, base_message: rpc.BaseMessage, T: type) !std.json.Parsed(T) {
-    const parsed = try rpc.readMessage(allocator, &base_message, lsp_structs.RequestMessage(T));
-    const params_str = try std.json.stringifyAlloc(allocator, parsed.value.params, .{ .whitespace = .indent_2 });
-    defer allocator.free(params_str);
-    std.log.info("Params:\n{s}", .{params_str});
-    return parsed;
-}
+// fn read_params(allocator: std.mem.Allocator, base_message: rpc.BaseMessage, T: type) !std.json.Parsed(T) {
+//     const parsed = try rpc.readMessage(allocator, &base_message, lsp_structs.RequestMessage(T));
+//     const params_str = try std.json.stringifyAlloc(allocator, parsed.value.params, .{ .whitespace = .indent_2 });
+//     defer allocator.free(params_str);
+//     std.log.info("Params:\n{s}", .{params_str});
+//     return parsed;
+// }
 
 fn write_response(allocator: std.mem.Allocator, stdout: std.fs.File.Writer, res: anytype) !void {
     const r = try std.json.stringifyAlloc(allocator, res, .{ .whitespace = .indent_2 });
-
-    ////
-    std.debug.print("{s}\n", .{r});
-    ////
     defer allocator.free(r);
     const msg = try std.fmt.allocPrint(allocator, "Content-Length: {d}\r\n\r\n{s}", .{ r.len, r });
     defer allocator.free(msg);
