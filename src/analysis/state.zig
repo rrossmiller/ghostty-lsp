@@ -1,8 +1,6 @@
 const std = @import("std");
 
-// I can't figure out string hashmaps with string values
-pub const State =
-    struct {
+pub const State = struct {
     allocator: std.mem.Allocator,
     documents: std.StringHashMap([]const u8),
     pub fn init(allocator: std.mem.Allocator) State {
@@ -17,15 +15,22 @@ pub const State =
 
     pub fn open_document(self: *State, uri: []const u8, text: []const u8) !void {
         //TODO parse the text
-        // try self.keys.put(uri, self.values.items.len);
-        // try self.values.append(text);
-        const my_uri = try self.documents.allocator.dupe(u8, uri);
+
+        // need to reallocate key and text because it will be freed when the params obj is freed
         const my_txt = try self.documents.allocator.dupe(u8, text);
+        const my_uri = try self.allocator.dupe(u8, uri);
         try self.documents.put(my_uri, my_txt);
     }
     pub fn update_document(self: *State, uri: []const u8, text: []const u8) !void {
-        todo fetch put
-        free value
-        try self.open_document(uri, text);
+        const my_txt = try self.allocator.dupe(u8, text);
+        if (try self.documents.fetchPut(uri, my_txt)) |kv| {
+            self.allocator.free(kv.value);
+        }
+    }
+    pub fn remove_doc(self: *State, uri: []const u8) void {
+        if (self.documents.fetchRemove(uri)) |kv| {
+            self.allocator.free(kv.key);
+            self.allocator.free(kv.value);
+        }
     }
 };

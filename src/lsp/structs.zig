@@ -33,12 +33,12 @@ const ClientInfo = struct {
 };
 
 pub const InitializeResult = struct {
-    capabilities: ServerCapabilities = .{ .textDocumentSync = 1 },
+    capabilities: ServerCapabilities = .{},
     serverInfo: ServerInfo = .{},
 };
 pub const ServerCapabilities = struct {
     textDocumentSync: u16 = 1,
-    // hoverProvider: bool = true,
+    hoverProvider: bool = true,
 };
 pub const ServerInfo = struct {
     name: []const u8 = "ghostty-lsp",
@@ -52,7 +52,9 @@ pub fn newInitializeResponse(id: ?u32) ResponseMessage(InitializeResult) {
     return r;
 }
 // < INITIALIZE
-
+const TextDocumentIdentifier = struct {
+    uri: []const u8,
+};
 // document/didOpen >
 pub const DidOpenParams = struct {
     textDocument: TextDocumentItem,
@@ -85,3 +87,8 @@ pub const TextDocumentContentChangeEvent = struct {
     text: []const u8,
 };
 // < document/didChange
+// document/didClose >
+pub const DidCloseParams = struct {
+    textDocument: TextDocumentIdentifier,
+};
+// < document/didClose

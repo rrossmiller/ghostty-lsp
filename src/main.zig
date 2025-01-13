@@ -24,28 +24,25 @@ pub fn main() !void {
 
     var state = State.init(allocator);
     defer state.deinit();
-    // var state = State{};
     // Start reading messages
-    while (true) {
+    var run = true;
+    while (run) {
         // parse the message
         const parsed = try rpc.BaseMessage.readMessage(allocator, stdin.reader());
         defer parsed.deinit();
         const base_message = parsed.value;
         defer base_message.deinit(allocator);
 
-        try handle_message(allocator, base_message, &state, stdout);
+        run = try handle_message(allocator, base_message, &state, stdout);
     }
 }
 
-fn handle_message(allocator: std.mem.Allocator, base_message: rpc.BaseMessage, state: *State, stdout: std.fs.File) !void {
+fn handle_message(allocator: std.mem.Allocator, base_message: rpc.BaseMessage, state: *State, stdout: std.fs.File) !bool {
     //TODO replace with enum?
     //impl json parse
     //https://www.reddit.com/r/Zig/comments/1bignpf/json_serialization_and_taggeddiscrimated_unions/
     //https://zigbin.io/651078
 
-    // std.debug.print("\n\n\n", .{});
-    // std.debug.print("{s}:\n{s}\n", .{ state.uri, state.text });
-    // std.debug.print("\n\n\n", .{});
     switch (try lsp.MessageType.get(base_message.method)) {
         // Requests
         .Initialize => {
@@ -55,6 +52,9 @@ fn handle_message(allocator: std.mem.Allocator, base_message: rpc.BaseMessage, s
             const init_res = lsp_structs.newInitializeResponse(parsed.value.id);
             try write_response(allocator, stdout.writer(), init_res);
         },
+        .Hover => {
+            std.debug.print("hover\n", .{});
+        },
         // Notifications
         .DidOpen => {
             const parsed = try rpc.readMessage(allocator, &base_message, lsp_structs.RequestMessage(lsp_structs.DidOpenParams));
@@ -62,31 +62,38 @@ fn handle_message(allocator: std.mem.Allocator, base_message: rpc.BaseMessage, s
             // store the text in the state map
             const params = parsed.value.params.?;
             try state.open_document(params.textDocument.uri, params.textDocument.text);
+            std.log.info("Opened: {s}", .{params.textDocument.uri});
         },
         .DidChange => {
-            std.debug.print("did change\n", .{});
             const parsed = try rpc.readMessage(allocator, &base_message, lsp_structs.RequestMessage(lsp_structs.DidChangeParams));
             defer parsed.deinit();
             const params = parsed.value.params.?;
-            for (params.contentChanges, 0..) |change, i| {
-                std.debug.print("update{d} {s}: {d}\n", .{ i, params.textDocument.uri, change.text.len });
+            for (params.contentChanges) |change| {
                 try state.update_document(params.textDocument.uri, change.text);
             }
-            std.debug.print("{s}\n", .{state.documents.get(params.textDocument.uri).?});
+            const a = state.documents.get(params.textDocument.uri).?;
+            std.debug.print("{s}\n", .{a});
         },
-        // .DidClose => {
-        //     std.debug.print("did close\n", .{});
-        // },
+        .DidClose => {
+            const parsed = try rpc.readMessage(allocator, &base_message, lsp_structs.RequestMessage(lsp_structs.DidCloseParams));
+            defer parsed.deinit();
+            const params = parsed.value.params.?;
+
+            state.remove_doc(params.textDocument.uri);
+            std.log.info("Close: {s}", .{params.textDocument.uri});
+        },
         // .DidSave => {
         //     std.debug.print("did save\n", .{});
         // },
-        // .Shutdown => {
-        //     std.log.info("\n***Thanks for playing***\n", .{});
-        // },
+        .Shutdown => {
+            std.log.info("Shutting down Ghostty LSP\n", .{});
+            return false;
+        },
         else => {
             std.log.info("Message Recieved: {s}", .{base_message.method});
         },
     }
+    return true;
 }
 
 fn write_response(allocator: std.mem.Allocator, stdout: std.fs.File.Writer, res: anytype) !void {
