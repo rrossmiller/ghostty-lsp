@@ -20,6 +20,7 @@ pub const State = struct {
         const my_txt = try self.documents.allocator.dupe(u8, text);
         const my_uri = try self.allocator.dupe(u8, uri);
         try self.documents.put(my_uri, my_txt);
+        // try self.documents.put(uri, my_txt);
     }
     pub fn update_document(self: *State, uri: []const u8, text: []const u8) !void {
         const my_txt = try self.allocator.dupe(u8, text);

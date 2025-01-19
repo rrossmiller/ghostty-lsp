@@ -4,6 +4,7 @@ const lsp = @import("lsp/lsp.zig");
 const lsp_structs = @import("lsp/structs.zig");
 const State = @import("analysis/state.zig").State;
 
+const version = "0.0.1";
 pub fn main() !void {
     // setup
     const stdin = std.io.getStdIn();
@@ -17,6 +18,16 @@ pub fn main() !void {
             // .ok => std.debug.print("deinit ok\n", .{}),
             .ok => {},
             .leak => std.debug.print("leaked\n", .{}),
+        }
+    }
+
+    // check if the --version command was called
+    var args = std.process.args();
+    _ = args.skip(); // skip name
+    if (args.next()) |cmd| {
+        if (std.mem.eql(u8, cmd, "--version")) {
+            try stdout.writeAll(version);
+            return;
         }
     }
 
@@ -43,17 +54,27 @@ fn handle_message(allocator: std.mem.Allocator, base_message: rpc.BaseMessage, s
     //https://www.reddit.com/r/Zig/comments/1bignpf/json_serialization_and_taggeddiscrimated_unions/
     //https://zigbin.io/651078
 
+    //TODO replace alloc with arena alloc and deinit on rtn?
+
     switch (try lsp.MessageType.get(base_message.method)) {
         // Requests
         .Initialize => {
             const parsed = try rpc.readMessage(allocator, &base_message, lsp_structs.RequestMessage(lsp_structs.InitializeParams));
             defer parsed.deinit();
             std.log.info("Connected to: {s}", .{parsed.value.params.?.clientInfo.name});
-            const init_res = lsp_structs.newInitializeResponse(parsed.value.id);
-            try write_response(allocator, stdout.writer(), init_res);
+            const res = lsp_structs.newInitializeResponse(parsed.value.id);
+            try write_response(allocator, stdout.writer(), res);
         },
         .Hover => {
-            std.debug.print("hover\n", .{});
+            const parsed = try rpc.readMessage(allocator, &base_message, lsp_structs.RequestMessage(lsp_structs.HoverParams));
+            defer parsed.deinit();
+            const params = parsed.value.params.?;
+            const len = try std.fmt.allocPrint(allocator, "{d}", .{state.documents.get(params.textDocument.uri).?.len});
+            defer allocator.free(len);
+
+            // TODO do something interesting with hover
+            const res = lsp_structs.newHoverResponse(parsed.value.id, len);
+            try write_response(allocator, stdout.writer(), res);
         },
         // Notifications
         .DidOpen => {
@@ -71,8 +92,6 @@ fn handle_message(allocator: std.mem.Allocator, base_message: rpc.BaseMessage, s
             for (params.contentChanges) |change| {
                 try state.update_document(params.textDocument.uri, change.text);
             }
-            const a = state.documents.get(params.textDocument.uri).?;
-            std.debug.print("{s}\n", .{a});
         },
         .DidClose => {
             const parsed = try rpc.readMessage(allocator, &base_message, lsp_structs.RequestMessage(lsp_structs.DidCloseParams));

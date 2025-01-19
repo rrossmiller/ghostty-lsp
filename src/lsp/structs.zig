@@ -16,13 +16,15 @@ pub fn ResponseMessage(comptime T: type) type {
         result: T,
     };
 }
-// pub fn Notification(comptime _: type) type {
-//     return struct {
-//         jsonrpc: []const u8 = "2.0",
-//         method: []const u8,
-//     };
-// }
-
+// COMMON
+const TextDocumentIdentifier = struct {
+    uri: []const u8,
+};
+const Position = struct {
+    line: u32,
+    character: u32,
+};
+//
 // INITIALIZE >
 pub const InitializeParams = struct {
     clientInfo: ClientInfo,
@@ -52,9 +54,32 @@ pub fn newInitializeResponse(id: ?u32) ResponseMessage(InitializeResult) {
     return r;
 }
 // < INITIALIZE
-const TextDocumentIdentifier = struct {
-    uri: []const u8,
+
+//  TEXTDOCUMENT/HOVER >
+pub const HoverParams = struct {
+    textDocument: TextDocumentIdentifier,
+    position: Position,
 };
+pub const TextDocumentPositionParams = struct {
+    // The text document.
+    textDocument: TextDocumentIdentifier,
+
+    //  The position inside the text document.
+    position: Position,
+};
+
+pub const HoverResult = struct {
+    contents: []const u8,
+};
+pub fn newHoverResponse(id: ?u32, contents: []const u8) ResponseMessage(HoverResult) {
+    return .{
+        .id = id,
+        .result = .{ .contents = contents },
+    };
+}
+
+//< TEXTDOCUMENT/HOVER
+
 // document/didOpen >
 pub const DidOpenParams = struct {
     textDocument: TextDocumentItem,
