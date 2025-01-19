@@ -2,10 +2,12 @@ const std = @import("std");
 
 pub const Parser = struct {
     entries: std.StringHashMap([]const u8),
+    allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator, contents: []const u8) !Parser {
-        const parser = Parser{
+        var parser = Parser{
             .entries = std.StringHashMap([]const u8).init(allocator),
+            .allocator = allocator,
         };
 
         // get reader over contents
@@ -18,26 +20,30 @@ pub const Parser = struct {
         // read every line
         while (try content_reader.readUntilDelimiterOrEof(buf, '\n')) |l| {
             std.debug.print("before: >{s}<\n", .{l});
-            const res = eat_whitespace(l);
-            std.debug.print("rm whitespace: >{s}<\n", .{res});
+            const line = consume_whitespace(l);
+            std.debug.print("rm whitespace: >{s}<\n", .{line});
 
             // skip commented out lines
-            if ('#' == res[0]) {
-                std.debug.print("comment: >{s}<\n", .{res});
-            } else {
-                std.debug.print("no comment: >{s}<\n", .{res});
+            if ('#' == line[0]) {
+                std.debug.print("comment: >{s}<\n\n", .{line});
+                continue;
             }
+            std.debug.print("no comment: >{s}<\n", .{line});
 
             // parse the line
+            try parser.parse_line(line);
             // break;
             std.debug.print("\n", .{});
         }
-
+        if (parser.entries.getPtr("k")) |v| {
+            std.debug.print(">>>>{s}\n", .{v.*});
+        } else {
+            std.debug.print(">>>>null\n", .{});
+        }
         return parser;
     }
 
-    // fn eat_whitespace(allocator: std.mem.Allocator, reader: std.io.StreamSource.Reader) ![]u8 {
-    fn eat_whitespace(line: []u8) []u8 {
+    fn consume_whitespace(line: []u8) []u8 {
         for (line, 0..) |b, i| {
             if (b != ' ' and b != '\t') {
                 return line[i..];
@@ -46,7 +52,38 @@ pub const Parser = struct {
         return line;
     }
 
+    fn parse_line(self: *Parser, line: []u8) !void {
+        // get the key
+        var idx: usize = 0;
+        for (line, 0..) |b, i| {
+            if (b == ' ' or b == '=') {
+                idx = i;
+                break;
+            }
+        }
+        std.debug.print("ID: {s}\n", .{line[0..idx]});
+        // get the value
+        var val_start_idx: usize = 0;
+        for (line[idx..], idx..) |b, i| {
+            // consume the equals
+            if (b != ' ' and b != '=') {
+                val_start_idx = i;
+                break;
+            }
+        }
+        const k = try self.allocator.dupe(u8, line[0..idx]);
+        const v = try self.allocator.dupe(u8, line[val_start_idx..]);
+        std.debug.print("Val: >{s}<\n", .{v});
+        try self.entries.put(k, v);
+    }
+
     pub fn deinit(self: *Parser) void {
+        // Free all keys and values in the hash map
+        var it = self.entries.iterator();
+        while (it.next()) |e| {
+            self.allocator.free(e.key_ptr.*);
+            self.allocator.free(e.value_ptr.*);
+        }
         self.entries.deinit();
     }
 };
@@ -54,11 +91,20 @@ pub const Parser = struct {
 test "init parser" {
     const allocator = std.testing.allocator;
     const contents =
+        \\ k=v
         \\  # font-family = "JetBrains Mono"
         \\      # font-family = "JetBrains Mono"
         \\# font-family = "JetBrains Mono"
         \\font-family = "Hack Nerd Font Mono"
-        \\font-thicken = true
+        \\font-thicken= true
     ;
-    _ = try Parser.init(allocator, contents);
+    var p = try Parser.init(allocator, contents);
+    defer p.deinit();
+    var v = p.entries.get("k").?;
+    try std.testing.expectEqualStrings("v", v);
+
+    v = p.entries.get("font-family").?;
+    try std.testing.expectEqualStrings("\"Hack Nerd Font Mono\"", v);
+    v = p.entries.get("font-thicken").?;
+    try std.testing.expectEqualStrings("true", v);
 }
