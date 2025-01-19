@@ -100,6 +100,7 @@ test "init parser" {
         \\# font-family = "JetBrains Mono"
         \\font-family = "Hack Nerd Font Mono"
         \\
+        \\          #
         \\font-thicken= true
     ;
     var p = try Parser.init(allocator, contents);
