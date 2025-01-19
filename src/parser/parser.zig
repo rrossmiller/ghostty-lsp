@@ -19,6 +19,9 @@ pub const Parser = struct {
         defer allocator.free(buf);
         // read every line
         while (try content_reader.readUntilDelimiterOrEof(buf, '\n')) |l| {
+            if (l.len == 0) {
+                continue;
+            }
             std.debug.print("before: >{s}<\n", .{l});
             const line = consume_whitespace(l);
             std.debug.print("rm whitespace: >{s}<\n", .{line});
@@ -96,6 +99,7 @@ test "init parser" {
         \\      # font-family = "JetBrains Mono"
         \\# font-family = "JetBrains Mono"
         \\font-family = "Hack Nerd Font Mono"
+        \\
         \\font-thicken= true
     ;
     var p = try Parser.init(allocator, contents);
