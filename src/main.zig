@@ -1,5 +1,6 @@
 const std = @import("std");
 const rpc = @import("rpc/rpc.zig");
+const docs = @import("docs/docs.zig");
 const lsp = @import("lsp/lsp.zig");
 const lsp_structs = @import("lsp/structs.zig");
 const State = @import("analysis/state.zig").State;
@@ -33,6 +34,9 @@ pub fn main() !void {
         }
     }
 
+    const p_docs = try docs.read_docs(allocator);
+    defer p_docs.deinit();
+    const docs_map = p_docs.value;
     std.log.info("ghostty-lsp started", .{});
 
     var state = State.init(allocator);
@@ -46,11 +50,11 @@ pub fn main() !void {
         const base_message = parsed.value;
         defer base_message.deinit(allocator);
 
-        run = try handle_message(allocator, base_message, &state, stdout);
+        run = try handle_message(allocator, base_message, &state, stdout, &docs_map);
     }
 }
 
-fn handle_message(allocator: std.mem.Allocator, base_message: rpc.BaseMessage, state: *State, stdout: std.fs.File) !bool {
+fn handle_message(allocator: std.mem.Allocator, base_message: rpc.BaseMessage, state: *State, stdout: std.fs.File, docs_map: *const std.json.ArrayHashMap([]const u8)) !bool {
     //TODO
     //impl json parse
     //https://www.reddit.com/r/Zig/comments/1bignpf/json_serialization_and_taggeddiscrimated_unions/
@@ -74,11 +78,11 @@ fn handle_message(allocator: std.mem.Allocator, base_message: rpc.BaseMessage, s
             const params = parsed.value.params.?;
             // const len = try std.fmt.allocPrint(allocator, "{d}", .{state.documents.get(params.textDocument.uri).?.len});
             if (state.documents.get(params.textDocument.uri)) |contents| {
-                if (lsp.hover(&params, contents)) |word| {
+                if (lsp.hover(&params, contents, docs_map)) |doc| {
                     // TODO do something interesting with hover
-                    const msg = try std.fmt.allocPrint(allocator, "Hovered word: {s}", .{word});
-                    defer allocator.free(msg);
-                    const res = lsp_structs.newHoverResponse(parsed.value.id, msg);
+                    // const msg = try std.fmt.allocPrint(allocator, "Hovered word: {s}", .{word});
+                    // defer allocator.free(msg);
+                    const res = lsp_structs.newHoverResponse(parsed.value.id, doc);
                     try write_response(allocator, stdout.writer(), res);
                 }
             }

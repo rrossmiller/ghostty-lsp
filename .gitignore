@@ -3,3 +3,4 @@ zig-out
 *.jsonc
 log.txt
 go
+docs.json

@@ -39,7 +39,7 @@ pub const MessageType = enum {
     }
 };
 
-pub fn hover(params: *const structs.HoverParams, contents: []const u8) ?[]const u8 {
+pub fn hover(params: *const structs.HoverParams, contents: []const u8, docs_map: *const std.json.ArrayHashMap([]const u8)) ?[]const u8 {
     var lines = std.mem.split(u8, contents, "\n");
 
     // skip lines
@@ -67,8 +67,10 @@ pub fn hover(params: *const structs.HoverParams, contents: []const u8) ?[]const 
             }
         }
 
-        std.debug.print("Hovered word: {s}\n", .{line[start_idx..end_idx]});
-        return line[start_idx..end_idx];
+        // std.debug.print("Hovered word: {s}\n", .{line[start_idx..end_idx]});
+        // return line[start_idx..end_idx];
+        const word = line[start_idx..end_idx];
+        return docs_map.map.get(word);
     }
     return null;
 }
