@@ -13,4 +13,3 @@ test:
 
 parse-docs:
     @cd docs; python3 parse.py
-    cp docs/docs.json src/docs
