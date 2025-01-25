@@ -25,7 +25,9 @@ pub fn main() !void {
     var args = std.process.args();
     _ = args.skip(); // skip name
     if (args.next()) |cmd| {
-        if (std.mem.eql(u8, cmd, "--version")) {
+        if (std.mem.eql(u8, cmd, "--version") or
+            std.mem.eql(u8, cmd, "-v"))
+        {
             try stdout.writeAll(version);
             return;
         }
@@ -49,7 +51,7 @@ pub fn main() !void {
 }
 
 fn handle_message(allocator: std.mem.Allocator, base_message: rpc.BaseMessage, state: *State, stdout: std.fs.File) !bool {
-    //TODO replace with enum?
+    //TODO
     //impl json parse
     //https://www.reddit.com/r/Zig/comments/1bignpf/json_serialization_and_taggeddiscrimated_unions/
     //https://zigbin.io/651078
@@ -68,13 +70,18 @@ fn handle_message(allocator: std.mem.Allocator, base_message: rpc.BaseMessage, s
         .Hover => {
             const parsed = try rpc.readMessage(allocator, &base_message, lsp_structs.RequestMessage(lsp_structs.HoverParams));
             defer parsed.deinit();
-            const params = parsed.value.params.?;
-            const len = try std.fmt.allocPrint(allocator, "{d}", .{state.documents.get(params.textDocument.uri).?.len});
-            defer allocator.free(len);
 
-            // TODO do something interesting with hover
-            const res = lsp_structs.newHoverResponse(parsed.value.id, len);
-            try write_response(allocator, stdout.writer(), res);
+            const params = parsed.value.params.?;
+            // const len = try std.fmt.allocPrint(allocator, "{d}", .{state.documents.get(params.textDocument.uri).?.len});
+            if (state.documents.get(params.textDocument.uri)) |contents| {
+                if (lsp.hover(&params, contents)) |word| {
+                    // TODO do something interesting with hover
+                    const msg = try std.fmt.allocPrint(allocator, "Hovered word: {s}", .{word});
+                    defer allocator.free(msg);
+                    const res = lsp_structs.newHoverResponse(parsed.value.id, msg);
+                    try write_response(allocator, stdout.writer(), res);
+                }
+            }
         },
         // Notifications
         .DidOpen => {

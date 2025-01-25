@@ -1,6 +1,5 @@
 const std = @import("std");
 const structs = @import("structs.zig");
-const State = @import("../analysis/state.zig").State;
 
 pub const LspError = error{MethodNotImplemented};
 pub const MessageType = enum {
@@ -39,3 +38,55 @@ pub const MessageType = enum {
         return LspError.MethodNotImplemented;
     }
 };
+
+pub fn hover(params: *const structs.HoverParams, contents: []const u8) ?[]const u8 {
+    var lines = std.mem.split(u8, contents, "\n");
+
+    // skip lines
+    for (0..params.position.line) |_| {
+        _ = lines.next();
+    }
+
+    if (lines.next()) |line| {
+        var i = if (params.position.character > 0) params.position.character - 1 else 0;
+        var start_idx: u32 = 0;
+        var end_idx: u32 = 0;
+        //search backwards until space
+        while (i > 0) : (i -= 1) {
+            if (line[i] == ' ' or line[i] == '\t') {
+                start_idx = i + 1;
+                break;
+            }
+        }
+        //search forwards until space
+        i = params.position.character + 1;
+        while (i < line.len) : (i += 1) {
+            if (line[i] == ' ' or line[i] == '\t') {
+                end_idx = i;
+                break;
+            }
+        }
+
+        std.debug.print("Hovered word: {s}\n", .{line[start_idx..end_idx]});
+        return line[start_idx..end_idx];
+    }
+    return null;
+}
+
+test "hover" {
+    // const allocator = std.testing.allocator();
+    const contents =
+        \\this is line 1
+        \\line2
+        \\line3
+        \\line4
+    ;
+    // const lines = try get_lines(contents);
+    const params = structs.HoverParams{
+        .position = .{ .line = 0, .character = 10 },
+        .textDocument = .{ .uri = "" },
+    };
+
+    hover(&params, contents);
+    // std.testing.expectEqual(4, lines.len);
+}

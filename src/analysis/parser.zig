@@ -1,10 +1,11 @@
 const std = @import("std");
 
 pub fn parse(allocator: std.mem.Allocator, contents: []const u8, entries: *std.StringHashMap([]const u8)) !void {
-    // var parser = Parser{
-    //     .allocator = allocator,
-    // };
-
+    //     TODO handle  keybind --> keybinds should not be overwritten
+    //     use a union of either string or keybind struct?
+    // keybind = global:opt+space=toggle_quick_terminal
+    // keybind = cmd+shift+l=move_tab:+1
+    // keybind = cmd+shift+h=move_tab:-1
     // get reader over contents
     var content_stream = std.io.StreamSource{ .const_buffer = std.io.fixedBufferStream(contents) };
     const content_reader = content_stream.reader();

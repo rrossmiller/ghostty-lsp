@@ -34,7 +34,7 @@ pub const State = struct {
         const my_uri = try self.allocator.dupe(u8, uri);
 
         // parse the text --> the parsed k:v goes into entries
-        parser.parse(self.allocator, text, self.entries);
+        try parser.parse(self.allocator, text, &self.entries);
 
         try self.documents.put(my_uri, my_txt);
     }
