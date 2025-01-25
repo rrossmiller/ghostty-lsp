@@ -1,7 +1,10 @@
 build: parse-docs
     @clear
     zig build
+
+build-nvim: build
     cp zig-out/bin/ghostty-lsp ~/.local/state/nvim/ghostty-lsp/lsp
+
 test:
     @clear
     zig test src/docs/docs.zig
