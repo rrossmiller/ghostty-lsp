@@ -6,6 +6,7 @@ pub const MessageType = enum {
     //Requests
     Initialize,
     Hover,
+    Completion,
     //Notifications
     Initialized,
     DidOpen,
@@ -21,6 +22,8 @@ pub const MessageType = enum {
             return MessageType.Hover;
         } else if (std.mem.eql(u8, method, "initialized")) {
             return MessageType.Initialized;
+        } else if (std.mem.eql(u8, method, "textDocument/completion")) {
+            return MessageType.Completion;
         }
         //Notifications
         else if (std.mem.eql(u8, method, "textDocument/didOpen")) {
@@ -42,15 +45,22 @@ pub const MessageType = enum {
 pub fn hover(params: *const structs.HoverParams, contents: []const u8, docs_map: *const std.json.ArrayHashMap([]const u8)) ?[]const u8 {
     var lines = std.mem.split(u8, contents, "\n");
 
-    // skip lines
+    // skip lines to get to the current line
     for (0..params.position.line) |_| {
         _ = lines.next();
     }
 
+    // work on the line
     if (lines.next()) |line| {
         var i = if (params.position.character > 0) params.position.character - 1 else 0;
         var start_idx: u32 = 0;
         var end_idx: u32 = 0;
+
+        // if comment (#) is earlier in the line that hover location, don't hover
+        if (line[0] == '#') {
+            std.debug.print("line {d} has comment\n", .{params.position.line});
+            return null;
+        }
         //search backwards until space
         while (i > 0) : (i -= 1) {
             if (line[i] == ' ' or line[i] == '\t') {
@@ -58,18 +68,28 @@ pub fn hover(params: *const structs.HoverParams, contents: []const u8, docs_map:
                 break;
             }
         }
+
+        // if comment (#) is earlier in the line that hover location, don't hover
+        while (i > 0) : (i -= 1) {
+            if (line[i] == '#') {
+                std.debug.print("line {d} has comment\n", .{params.position.line});
+                return null;
+            }
+        }
+        std.debug.print("{d}\n", .{params.position.line});
+
         //search forwards until space
         i = params.position.character + 1;
         while (i < line.len) : (i += 1) {
-            if (line[i] == ' ' or line[i] == '\t') {
-                end_idx = i;
+            end_idx = i;
+            if (line[i] == ' ' or line[i] == '\t' or line[i] == '#') {
                 break;
             }
         }
 
-        // std.debug.print("Hovered word: {s}\n", .{line[start_idx..end_idx]});
-        // return line[start_idx..end_idx];
         const word = line[start_idx..end_idx];
+
+        std.debug.print("get {s} docs\n", .{word});
         return docs_map.map.get(word);
     }
     return null;

@@ -3,6 +3,7 @@ build: parse-docs
     zig build
 
 build-nvim: build
+    rm ~/.local/state/nvim/ghostty-lsp/lsp
     cp zig-out/bin/ghostty-lsp ~/.local/state/nvim/ghostty-lsp/lsp
 
 test:

@@ -21,6 +21,9 @@ pub fn main() !void {
             .leak => std.debug.print("leaked\n", .{}),
         }
     }
+    var arena = std.heap.ArenaAllocator.init(gpa.allocator());
+    defer arena.deinit();
+    const aren_allocator = arena.allocator();
 
     // check if the --version command was called
     var args = std.process.args();
@@ -45,12 +48,12 @@ pub fn main() !void {
     var run = true;
     while (run) {
         // parse the message
-        const parsed = try rpc.BaseMessage.readMessage(allocator, stdin.reader());
+        const parsed = try rpc.BaseMessage.readMessage(aren_allocator, stdin.reader());
         defer parsed.deinit();
         const base_message = parsed.value;
-        defer base_message.deinit(allocator);
+        defer base_message.deinit(aren_allocator);
 
-        run = try handle_message(allocator, base_message, &state, stdout, &docs_map);
+        run = try handle_message(aren_allocator, base_message, &state, stdout, &docs_map);
     }
 }
 
@@ -86,6 +89,9 @@ fn handle_message(allocator: std.mem.Allocator, base_message: rpc.BaseMessage, s
                     try write_response(allocator, stdout.writer(), res);
                 }
             }
+        },
+        .Completion => {
+            std.debug.print("completion\n", .{});
         },
         // Notifications
         .DidOpen => {

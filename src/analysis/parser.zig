@@ -18,16 +18,16 @@ pub fn parse(allocator: std.mem.Allocator, contents: []const u8, entries: *std.S
         if (l.len == 0) {
             continue;
         }
-        std.debug.print("before: >{s}<\n", .{l});
+        // std.debug.print("before: >{s}<\n", .{l});
         const line = consume_whitespace(l);
-        std.debug.print("rm whitespace: >{s}<\n", .{line});
+        // std.debug.print("rm whitespace: >{s}<\n", .{line});
 
         // skip commented out lines
         if ('#' == line[0]) {
-            std.debug.print("comment: >{s}<\n\n", .{line});
+            // std.debug.print("comment: >{s}<\n\n", .{line});
             continue;
         }
-        std.debug.print("no comment: >{s}<\n", .{line});
+        // std.debug.print("no comment: >{s}<\n", .{line});
 
         // parse the line
         try parse_line(allocator, line, entries);

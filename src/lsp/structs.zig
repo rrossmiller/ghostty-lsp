@@ -41,6 +41,11 @@ pub const InitializeResult = struct {
 pub const ServerCapabilities = struct {
     textDocumentSync: u16 = 1,
     hoverProvider: bool = true,
+    // completionProvider: CompletionOptions = .{},
+    // https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_completion
+};
+const CompletionOptions = struct {
+    //
 };
 pub const ServerInfo = struct {
     name: []const u8 = "ghostty-lsp",
