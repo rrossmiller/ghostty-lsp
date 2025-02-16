@@ -112,3 +112,33 @@ test "hover" {
     hover(&params, contents);
     // std.testing.expectEqual(4, lines.len);
 }
+
+pub fn completion(allocator: std.mem.Allocator, params: structs.CompletionParams) !?[]structs.CompletionItem {
+    std.debug.print("completion for {s}\n", .{params.textDocument.uri});
+    const items = try allocator.alloc(structs.CompletionItem, 1);
+    // ask the static analysis tool to figure out good completions
+    items[0] = .{
+        .label = "LABEL",
+        .detail = "DETAIL",
+        .documentation = "DOCUMENTATION",
+    };
+    return items;
+}
+
+test "completion" {
+    // const allocator = std.testing.allocator();
+    const contents =
+        \\this is line 1
+        \\line2
+        \\line3
+        \\line4
+    ;
+    // const lines = try get_lines(contents);
+    const params = structs.CompletionParams{
+        .position = .{ .line = 0, .character = 10 },
+        .textDocument = .{ .uri = "" },
+    };
+
+    completion(&params, contents);
+    // std.testing.expectEqual(4, lines.len);
+}

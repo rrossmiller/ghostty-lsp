@@ -1,3 +1,4 @@
+const std = @import("std");
 pub fn RequestMessage(comptime T: type) type {
     return struct {
         jsonrpc: []const u8 = "2.0",
@@ -35,17 +36,37 @@ const ClientInfo = struct {
 };
 
 pub const InitializeResult = struct {
+    // capabilities: ServerCapabilities,
     capabilities: ServerCapabilities = .{},
     serverInfo: ServerInfo = .{},
 };
 pub const ServerCapabilities = struct {
     textDocumentSync: u16 = 1,
     hoverProvider: bool = true,
-    // completionProvider: CompletionOptions = .{},
     // https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_completion
+    completionProvider: CompletionOptions = .{},
+    // completionProvider: std.AutoHashMap(u8, u8),
+    // pub fn init(allocator: std.mem.Allocator) !ServerCapabilities {
+    //     const map = try std.AutoHashMap(u8, u8).init(allocator);
+    //     return .{
+    //         .completionProvider = map,
+    //     };
+    // }
 };
+// pub const RegistrationParams = struct {
+//     method: []const u8 = "client/registerCapability",
+//     params: struct {
+//         registration: []const Registration,
+//     },
+// };
+// pub const Registration = struct {
+//     id: []const u8,
+//     method: []const u8,
+// };
 const CompletionOptions = struct {
-    //
+    // triggerCharacters: ?[]u8 = null,
+    // allCommitCharacters: ?[]u8 = null,
+    // resolveProvider: ?bool = null,
 };
 pub const ServerInfo = struct {
     name: []const u8 = "ghostty-lsp",
@@ -55,6 +76,19 @@ pub fn newInitializeResponse(id: ?u32) ResponseMessage(InitializeResult) {
     const r = ResponseMessage(InitializeResult){
         .id = id,
         .result = .{},
+    };
+    return r;
+}
+
+pub fn anewInitializeResponse(allocator: std.mem.Allocator, id: ?u32) ResponseMessage(InitializeResult) {
+    const map = std.AutoHashMap(u8, u8).init(allocator);
+    const r = ResponseMessage(InitializeResult){
+        .id = id,
+        .result = .{
+            .capabilities = .{
+                .completionProvider = map,
+            },
+        },
     };
     return r;
 }
@@ -83,7 +117,37 @@ pub fn newHoverResponse(id: ?u32, contents: []const u8) ResponseMessage(HoverRes
     };
 }
 
-//< TEXTDOCUMENT/HOVER
+// < TEXTDOCUMENT/HOVER
+// TEXTDOCUMENT/COMPLETION >
+pub const CompletionParams = struct {
+    textDocument: TextDocumentIdentifier,
+    position: Position,
+};
+
+pub const CompletionResult = struct {
+    items: ?[]CompletionItem, //TODO remove null
+};
+pub const CompletionItem = struct {
+    // The label of this completion item.
+    //
+    // The label property is also by default the text that
+    // is inserted when selecting this completion.
+    //
+    // If label details are provided the label itself should
+    // be an unqualified name of the completion item.
+    label: []const u8,
+    // kind: u8 = 1, // https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#completionItemKind
+    detail: []const u8,
+    documentation: []const u8,
+};
+//TODO remove null
+pub fn newCompletionResponse(id: ?u32, items: ?[]CompletionItem) ResponseMessage(CompletionResult) {
+    return .{
+        .id = id,
+        .result = .{ .items = items },
+    };
+}
+// < TEXTDOCUMENT/COMPLETION
 
 // document/didOpen >
 pub const DidOpenParams = struct {

@@ -91,7 +91,16 @@ fn handle_message(allocator: std.mem.Allocator, base_message: rpc.BaseMessage, s
             }
         },
         .Completion => {
-            std.debug.print("completion\n", .{});
+            const parsed = try rpc.readMessage(allocator, &base_message, lsp_structs.RequestMessage(lsp_structs.CompletionParams));
+            defer parsed.deinit();
+            std.log.info("completion on line: {d}", .{parsed.value.params.?.position.line});
+
+            //TODO completion impl
+            const maybe_items = try lsp.completion(allocator, parsed.value.params.?);
+            const items = maybe_items.?;
+            defer allocator.free(items);
+            const res = lsp_structs.newCompletionResponse(parsed.value.id, items);
+            try write_response(allocator, stdout.writer(), res);
         },
         // Notifications
         .DidOpen => {
@@ -100,7 +109,7 @@ fn handle_message(allocator: std.mem.Allocator, base_message: rpc.BaseMessage, s
             // store the text in the state map
             const params = parsed.value.params.?;
             try state.open_document(params.textDocument.uri, params.textDocument.text);
-            std.log.info("Opened: {s}", .{params.textDocument.uri});
+            // std.log.info("Opened: {s}", .{params.textDocument.uri});
         },
         .DidChange => {
             const parsed = try rpc.readMessage(allocator, &base_message, lsp_structs.RequestMessage(lsp_structs.DidChangeParams));
@@ -126,7 +135,7 @@ fn handle_message(allocator: std.mem.Allocator, base_message: rpc.BaseMessage, s
             return false;
         },
         else => {
-            std.log.info("Message Recieved: {s}", .{base_message.method});
+            // std.log.info("Message Recieved: {s}", .{base_message.method});
         },
     }
     return true;
@@ -135,6 +144,7 @@ fn handle_message(allocator: std.mem.Allocator, base_message: rpc.BaseMessage, s
 fn write_response(allocator: std.mem.Allocator, stdout: std.fs.File.Writer, res: anytype) !void {
     const r = try std.json.stringifyAlloc(allocator, res, .{ .whitespace = .indent_2 });
     defer allocator.free(r);
+    std.debug.print("{s}\n", .{r});
     const msg = try std.fmt.allocPrint(allocator, "Content-Length: {d}\r\n\r\n{s}", .{ r.len, r });
     defer allocator.free(msg);
     try stdout.writeAll(msg);

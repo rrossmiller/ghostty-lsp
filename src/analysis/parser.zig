@@ -31,7 +31,7 @@ pub fn parse(allocator: std.mem.Allocator, contents: []const u8, entries: *std.S
 
         // parse the line
         try parse_line(allocator, line, entries);
-        std.debug.print("\n", .{});
+        // std.debug.print("\n", .{});
     }
 }
 
@@ -53,7 +53,7 @@ fn parse_line(allocator: std.mem.Allocator, line: []u8, entries: *std.StringHash
             break;
         }
     }
-    std.debug.print("ID: {s}\n", .{line[0..idx]});
+    // std.debug.print("ID: {s}\n", .{line[0..idx]});
     // get the value
     var val_start_idx: usize = 0;
     for (line[idx..], idx..) |b, i| {
@@ -65,7 +65,7 @@ fn parse_line(allocator: std.mem.Allocator, line: []u8, entries: *std.StringHash
     }
     const k = try allocator.dupe(u8, line[0..idx]);
     const v = try allocator.dupe(u8, line[val_start_idx..]);
-    std.debug.print("Val: >{s}<\n", .{v});
+    // std.debug.print("Val: >{s}<\n", .{v});
     try entries.put(k, v);
 }
 
